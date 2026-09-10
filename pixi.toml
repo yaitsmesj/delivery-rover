@@ -1,0 +1,28 @@
+[workspace]
+authors = ["Suraj Jain <imsuraj.sj@gmail.com>"]
+channels = ["robostack-humble", "conda-forge", "pytorch"]
+name = "deliver-rover"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[dependencies]
+python                        = "3.12.*"  # RoboStack's Humble builds are pinned to this;
+                                          # without it pixi solves a newer python and finds
+                                          # no ros-humble-* candidates at all
+setuptools                    = "<80"
+ros-humble-desktop            = "*"   # ros-base + RViz2 + rqt + the visual tools
+ros-humble-navigation2        = "*"   # Nav2 servers incl. MPPI (1.1.20)
+ros-humble-py-trees-ros       = "*"   # behavior trees (M5)
+ros-humble-tf-transformations = "*"
+ros-humble-vision-msgs        = "*"   # Detection2DArray (M4)
+ros-humble-rosbridge-suite    = "*"   # only if you want the Foxglove fallback (M2)
+colcon-common-extensions      = "*"   # the build tool
+pytorch     = "*"                     # Metal-accelerated on Apple Silicon
+torchvision = "*"
+opencv      = "*"
+numpy       = "*"
+pyyaml      = "*"
+pytest      = "<8"
+
+[pypi-dependencies]
+ultralytics = "*"                     # YOLO — via pixi, never bare pip

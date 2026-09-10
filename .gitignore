@@ -1,0 +1,8 @@
+# pixi environments
+.pixi/
+build/
+install/
+log/
+bags/
+*.pt
+__pycache__/
