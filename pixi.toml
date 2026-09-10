@@ -1,7 +1,7 @@
 [workspace]
 authors = ["Suraj Jain <imsuraj.sj@gmail.com>"]
 channels = ["robostack-humble", "conda-forge", "pytorch"]
-name = "deliver-rover"
+name = "delivery-rover"
 platforms = ["osx-arm64"]
 version = "0.1.0"
 
@@ -26,3 +26,6 @@ pytest      = "<8"
 
 [pypi-dependencies]
 ultralytics = "*"                     # YOLO — via pixi, never bare pip
+
+[activation.env]
+ROS_LOCALHOST_ONLY = "1"
