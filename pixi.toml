@@ -29,3 +29,4 @@ ultralytics = "*"                     # YOLO — via pixi, never bare pip
 
 [activation.env]
 ROS_LOCALHOST_ONLY = "1"
+PYTORCH_ENABLE_MPS_FALLBACK = "1"
