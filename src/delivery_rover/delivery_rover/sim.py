@@ -15,7 +15,6 @@ from __future__ import annotations
 import math
 
 import numpy as np
-import rclpy
 from geometry_msgs.msg import TransformStamped, Twist
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
@@ -82,7 +81,7 @@ class DiffDriveSim(Node):
     # -- outputs -----------------------------------------------------------
     def _publish_odom(self):
         now = self.get_clock().now().to_msg()
-        qx, qy, qz, qw = yaw_to_quat(self.yaw)
+        _qx, _qy, qz, qw = yaw_to_quat(self.yaw)
 
         odom = Odometry()
         odom.header.stamp = now

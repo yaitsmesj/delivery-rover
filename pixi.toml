@@ -23,6 +23,8 @@ opencv      = "*"
 numpy       = "*"
 pyyaml      = "*"
 pytest      = "<8"
+ruff = "*"
+black = "*"
 
 [pypi-dependencies]
 ultralytics = "*"                     # YOLO — via pixi, never bare pip

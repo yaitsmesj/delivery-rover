@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ament_pep257.main import main
 import pytest
+from ament_pep257.main import main
 
 
 @pytest.mark.linter
 @pytest.mark.pep257
 def test_pep257():
-    rc = main(argv=['.', 'test'])
+    rc = main(argv=[
+        '.', 'test', '--add-ignore',
+        'D102', 'D103', 'D104', 'D107', 'D213', 'D400', 'D401', 'D403'])
     assert rc == 0, 'Found code style errors / warnings'

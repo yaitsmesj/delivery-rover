@@ -1,4 +1,3 @@
-# FILE: tests/check_nav.py
 """Client-side check: the stack is already launched; drive it.
 
 Run with the workspace sourced, from any directory:
@@ -7,13 +6,13 @@ Run with the workspace sourced, from any directory:
 import sys
 import time
 
+from cockpit import get_cockpit
+from delivery_rover.navigator import Navigator
 from nav_msgs.msg import Odometry
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy
 from sensor_msgs.msg import LaserScan
 
 from delivery_rover import world
-from cockpit import get_cockpit
-from delivery_rover.navigator import Navigator
 
 fails = []
 

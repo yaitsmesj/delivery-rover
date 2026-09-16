@@ -26,8 +26,7 @@ import numpy as np
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy
 from sensor_msgs.msg import Image
-from vision_msgs.msg import (Detection2D, Detection2DArray,
-                             ObjectHypothesisWithPose)
+from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithPose
 
 FRAME_RATE = 5.0        # Hz — perception does not need control rates
 CONF_THRESHOLD = 0.4
@@ -111,8 +110,9 @@ class RobotVisionBrain(Node):
     def _process(self, frame):
         if self.model is None:
             import os
+
             import torch
-            from ultralytics import YOLO       # heavy import, done once
+            from ultralytics import YOLO  # heavy import, done once
             if self.device == "cpu":
                 # CPU inference must not starve the control loop: leave
                 # cores free for MPPI. (Irrelevant on mps/cuda.)

@@ -10,11 +10,10 @@ package.
 """
 import sys
 
-from rclpy.qos import QoSProfile, QoSReliabilityPolicy
-from nav_msgs.msg import Odometry
-from sensor_msgs.msg import LaserScan
-
 from cockpit import get_cockpit
+from nav_msgs.msg import Odometry
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy
+from sensor_msgs.msg import LaserScan
 
 fails = []
 

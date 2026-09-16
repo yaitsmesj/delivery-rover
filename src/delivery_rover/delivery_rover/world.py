@@ -37,8 +37,11 @@ LOCATIONS = {
 
 
 def occupancy_grid() -> np.ndarray:
-    """The floor plan as a grid: 0 = free, 1 = occupied. grid[row, col],
-    row 0 at y=0 (the map's bottom edge)."""
+    """Render the floor plan as an occupancy grid.
+
+    0 = free, 1 = occupied, indexed grid[row, col] with row 0 at y=0 —
+    the map's bottom edge.
+    """
     nx, ny = int(SIZE_X / RESOLUTION), int(SIZE_Y / RESOLUTION)
     grid = np.zeros((ny, nx), dtype=np.uint8)
     for (x0, y0, x1, y1) in OBSTACLES:

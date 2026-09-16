@@ -23,7 +23,6 @@ import time
 import rclpy
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
-
 from tf_utils import TFHelper
 
 _session = None
