@@ -76,13 +76,18 @@ class DiffDriveSim(Node):
         """Draw the chassis once, in base_link, for RViz.
 
         Transient-local, so it is sent once and replayed to any viewer that
-        joins later; RViz carries it through TF, so the body follows the
-        robot without this node republishing anything.
+        joins later. frame_locked is what makes "once" enough: without it a
+        marker is transformed into the fixed frame on arrival and then left
+        there, so the body would sit at whatever pose the robot had when RViz
+        connected while the laser and TF drove off without it. With it set,
+        RViz re-transforms the marker from base_link every frame, and the
+        body follows the robot for free.
         """
         body = Marker()
         body.header.frame_id = "base_link"
         body.ns, body.id = "rover", 0
         body.type, body.action = Marker.CUBE, Marker.ADD
+        body.frame_locked = True
         body.pose.orientation.w = 1.0
         body.scale.x, body.scale.y, body.scale.z = 0.42, 0.32, 0.18
         body.color.r, body.color.g = 0.95, 0.55
@@ -93,6 +98,7 @@ class DiffDriveSim(Node):
         nose.header.frame_id = "base_link"
         nose.ns, nose.id = "rover", 1
         nose.type, nose.action = Marker.ARROW, Marker.ADD
+        nose.frame_locked = True
         nose.pose.position.x = 0.21
         nose.pose.orientation.w = 1.0
         nose.scale.x, nose.scale.y, nose.scale.z = 0.18, 0.06, 0.06
