@@ -11,8 +11,12 @@ ros2 launch delivery_rover bringup.launch.py
 ros2 service call /start_mission std_srvs/srv/Trigger '{}'
 ```
 
-<!-- TODO: drop the 60-second clip here -->
-<!-- ![the rover delivering](docs/media/mission.gif) -->
+![A full delivery, 3x speed](docs/media/mission.gif)
+
+*One unedited run at 3× speed: plan, drive to pickup, fail to find the cargo,
+turn and look again, then carry on to dropoff. The cargo is revealed 36 seconds
+in, so the failure and the recovery are real, not staged.
+([full-speed video](docs/media/mission.mp4))*
 
 ---
 
@@ -61,7 +65,13 @@ all of the decision-making in this project actually lives.
 
 **The robot is coupled to its hardware by exactly four names:** `/cmd_vel`,
 `/odom`, `/scan`, and TF. Replace the simulator with a real base publishing
-those four, and nothing else in the stack changes.
+those four, and nothing else in the stack changes. That claim is not a diagram —
+it is what the base node reports about itself:
+
+![ros2 node info /diff_drive_sim](docs/media/03-node-info.png)
+
+*One subscription in, four topics out. Everything else listed is the parameter
+and logging boilerplate every ROS 2 node carries.*
 
 | Component | What it is | Written here? |
 |---|---|---|
@@ -118,6 +128,49 @@ ros2 launch delivery_rover bringup.launch.py source:=assets/feed.mp4 cargo:=pers
 | `auto_start` | `false` | `true` to deliver as soon as Nav2 is ready |
 | `viz` | `false` | `true` starts rosbridge for Foxglove |
 
+## Watching it run
+
+One command brings up nine processes and walks Nav2's five lifecycle servers to
+ACTIVE:
+
+![the tail of a bringup](docs/media/01-launch.png)
+
+*The end of startup: the lifecycle manager activating each server in turn, MPPI
+coming up as the controller plugin, YOLO loading onto the Mac's GPU, and the
+mission node reporting that it is ready for a goal. The MPS fallback warning for
+`torchvision::nms` is expected — that one operator has no Metal kernel and runs
+on the CPU.*
+
+`rviz/rover.rviz` is configured to open on the depot with everything already
+wired — map, both costmaps, the laser, the global plan, the rover body and the
+annotated camera feed:
+
+![RViz at rest](docs/media/04-rviz-idle.png)
+
+The rover is the orange box with a nose arrow. There is no URDF in this project,
+so that body is a `visualization_msgs/Marker` published once in `base_link` with
+`frame_locked` set — RViz re-transforms it through TF every frame, so it follows
+the robot without the simulator republishing anything.
+
+![mid-journey, with the global plan](docs/media/05-rviz-plan.png)
+
+*Driving the first leg. Green is the global plan from NavFn; the coloured band
+is the local costmap's inflation layer around the shelving, which is what stops
+MPPI cutting the corner.*
+
+![parked at the dropoff](docs/media/10b-rviz-success.png)
+
+*Mission complete. Laser returns (red) pick out the two walls of the corner, and
+the body sits inside its own costmap footprint.*
+
+Perception is a separate node that only ever publishes labels and boxes:
+
+![YOLO detections on the live feed](docs/media/08-yolo.png)
+
+*`/robot/camera/annotated` in `rqt_image_view`. The mission tree never sees this
+image — it subscribes to `/robot/ai/detections`, which carries the class name and
+a score and nothing else.*
+
 ## Tests
 
 Unit tests for pure logic, integration checks against a running system — the
@@ -126,6 +179,11 @@ same split used in industry.
 ```bash
 colcon test && colcon test-result --verbose    # lint + unit tests
 ```
+
+![colcon test](docs/media/12-colcon-test.png)
+
+*Seven tests, no failures. The skip is `test_copyright`, which ament generates
+disabled; the rest are flake8, pep257 and the world-geometry unit tests.*
 
 With the stack already running, each check subscribes like any other ROS client
 — no privileged access, so anything it can verify, a reviewer can too:
@@ -137,6 +195,12 @@ With the stack already running, each check subscribes like any other ROS client
 | `tests/check_perception.py` | Detections arrive, images valid, staleness expires |
 | `tests/check_mission.py` | Full delivery end to end, with the status trail |
 
+![the three check scripts](docs/media/11-checks.png)
+
+*All three in one pass. `check_nav` drives both legs itself — 21.7 s to pickup,
+18.5 s to dropoff — and `check_mission` asserts on the status trail, not just the
+final result, so a tree that reached SUCCESS without visiting pickup would fail.*
+
 Two scripts make the awkward cases repeatable:
 
 ```bash
@@ -146,10 +210,32 @@ python3 tests/fake_perception.py --label ""
 # cargo revealed mid-recovery → the rover turns, looks again, and delivers
 python3 tests/fake_perception.py --label bottle --delay 36
 
-# two publishers on /cmd_vel: whoever publishes faster wins
-python3 tests/experiment_two_publishers.py --rate 10   # loses to Nav2's 20 Hz
-python3 tests/experiment_two_publishers.py             # 40 Hz, wins
+# what happens when two things command /cmd_vel at once
+python3 tests/experiment_two_publishers.py --rate 10   # slower than Nav2
+python3 tests/experiment_two_publishers.py             # 40 Hz, faster
 ```
+
+### The /cmd_vel experiment
+
+A topic has **no arbitration**. Every message is delivered and the robot acts on
+whichever arrived last, so the winner is decided by publish rate, not by
+priority. Nav2's controller publishes at 20 Hz:
+
+![a 10 Hz interferer on /cmd_vel](docs/media/13-two-publishers-slow.png)
+
+*A 10 Hz interferer loses 1:2 — and the goal still **succeeds**. Watch the
+heading column from the moment the second publisher comes on: 71° → 82° → 71° →
+68° → 39°, wobbling hard, while `remaining` keeps falling the whole time.
+Nothing errors and nothing warns.*
+
+That is the result worth keeping, because **"it still arrived" is exactly how
+this bug survives code review on a real robot.** The goal succeeded, the logs
+were clean, and the rover was being driven by two minds for fifteen seconds.
+
+Pass `--rate 40` and the interferer outpaces the controller instead; the script
+prints the ratio and which way to expect it to go before it sends the goal. Send
+the rover home between runs — starting at the goal makes Nav2 return SUCCEEDED
+before the interferer does anything, which proves nothing.
 
 ## Design decisions worth defending
 
@@ -203,11 +289,15 @@ src/delivery_rover/        the robot — everything here is installed
   test/                    lint + unit tests
 tests/                     check scripts — run by hand, never installed
 rviz/                      the RViz layout
+docs/                      the captured run, and how to reproduce it
 ```
 
 The split is deliberate: **if it would not be installed on the robot, it does
 not belong in the robot's package.** The check scripts talk to the running
 system the same way any other ROS client would.
+
+Every image above is reproducible — [`docs/M6-capture-checklist.md`](docs/M6-capture-checklist.md)
+gives the exact commands, in order, from a clean checkout.
 
 ## Known limits
 
