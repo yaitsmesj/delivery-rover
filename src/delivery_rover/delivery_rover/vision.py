@@ -30,6 +30,7 @@ from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithP
 
 FRAME_RATE = 5.0        # Hz — perception does not need control rates
 CONF_THRESHOLD = 0.4
+IMG_SIZE = 640          # inference resolution; see _process()
 
 
 def to_image_msg(frame: np.ndarray, stamp, frame_id: str) -> Image:
@@ -123,8 +124,12 @@ class RobotVisionBrain(Node):
         stamp = self.get_clock().now().to_msg()
         self.image_pub.publish(to_image_msg(frame, stamp, "camera_link"))
 
+        # imgsz caps the inference resolution. A MacBook camera hands over
+        # 1920x1080 frames; letting YOLO run at that size costs seconds per
+        # frame and buys nothing — the detector was trained at 640.
         result = self.model.predict(
-            frame, device=self.device, conf=CONF_THRESHOLD, verbose=False)[0]
+            frame, device=self.device, conf=CONF_THRESHOLD,
+            imgsz=IMG_SIZE, verbose=False)[0]
 
         detections = Detection2DArray()
         detections.header.stamp = stamp

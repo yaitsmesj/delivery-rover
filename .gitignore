@@ -7,3 +7,7 @@ bags/
 *.pt
 __pycache__/
 .DS_Store
+assets/*.mp4
+.ruff_cache/
+.claude/
+.vscode/
