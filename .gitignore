@@ -11,3 +11,6 @@ assets/*.mp4
 .ruff_cache/
 .claude/
 .vscode/
+
+# full-resolution screenshot originals, kept locally only
+docs/media/_full/

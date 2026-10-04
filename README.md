@@ -146,8 +146,9 @@ python3 tests/fake_perception.py --label ""
 # cargo revealed mid-recovery → the rover turns, looks again, and delivers
 python3 tests/fake_perception.py --label bottle --delay 36
 
-# what happens when two things command /cmd_vel at once (spoiler: it fails)
-python3 tests/experiment_two_publishers.py
+# two publishers on /cmd_vel: whoever publishes faster wins
+python3 tests/experiment_two_publishers.py --rate 10   # loses to Nav2's 20 Hz
+python3 tests/experiment_two_publishers.py             # 40 Hz, wins
 ```
 
 ## Design decisions worth defending
@@ -220,4 +221,10 @@ system the same way any other ROS client would.
 
 ## License
 
-MIT
+MIT for everything in this repository — see [`LICENSE`](LICENSE).
+
+One caveat worth stating plainly: the detector depends on **Ultralytics YOLO,
+which is AGPL-3.0**, as are the `*.pt` weights it downloads at runtime. Neither
+is vendored here, and the MIT licence above covers only this repository's own
+source. [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) lists every
+dependency licence and explains what that means if you want to reuse this.

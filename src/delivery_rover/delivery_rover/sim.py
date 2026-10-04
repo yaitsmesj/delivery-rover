@@ -18,9 +18,10 @@ import numpy as np
 from geometry_msgs.msg import TransformStamped, Twist
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, QoSReliabilityPolicy
+from rclpy.qos import QoSDurabilityPolicy, QoSProfile, QoSReliabilityPolicy
 from sensor_msgs.msg import LaserScan
 from tf2_ros import StaticTransformBroadcaster, TransformBroadcaster
+from visualization_msgs.msg import Marker
 
 from . import world
 
@@ -51,6 +52,17 @@ class DiffDriveSim(Node):
             depth=5, reliability=QoSReliabilityPolicy.BEST_EFFORT)
         self.scan_pub = self.create_publisher(LaserScan, "/scan", sensor_qos)
 
+        # A body for RViz. There is no URDF in this project, so without this
+        # the rover is only a TF triad on screen. The marker is published
+        # ONCE, in the base_link frame, with transient-local durability:
+        # RViz transforms it through TF every frame, so it follows the robot
+        # for free and late-joining viewers still see it.
+        self.body_pub = self.create_publisher(
+            Marker, "/robot/body",
+            QoSProfile(depth=1,
+                       durability=QoSDurabilityPolicy.TRANSIENT_LOCAL))
+        self._publish_body()
+
         self.tf = TransformBroadcaster(self)
         self.static_tf = StaticTransformBroadcaster(self)
         self._publish_static_frames()
@@ -58,6 +70,35 @@ class DiffDriveSim(Node):
         self.create_timer(1.0 / SIM_RATE, self._integrate)
         self.create_timer(1.0 / ODOM_RATE, self._publish_odom)
         self.create_timer(1.0 / SCAN_RATE, self._publish_scan)
+
+    # -- appearance --------------------------------------------------------
+    def _publish_body(self):
+        """Draw the chassis once, in base_link, for RViz.
+
+        Transient-local, so it is sent once and replayed to any viewer that
+        joins later; RViz carries it through TF, so the body follows the
+        robot without this node republishing anything.
+        """
+        body = Marker()
+        body.header.frame_id = "base_link"
+        body.ns, body.id = "rover", 0
+        body.type, body.action = Marker.CUBE, Marker.ADD
+        body.pose.orientation.w = 1.0
+        body.scale.x, body.scale.y, body.scale.z = 0.42, 0.32, 0.18
+        body.color.r, body.color.g = 0.95, 0.55
+        body.color.b, body.color.a = 0.15, 1.0
+        self.body_pub.publish(body)
+
+        nose = Marker()
+        nose.header.frame_id = "base_link"
+        nose.ns, nose.id = "rover", 1
+        nose.type, nose.action = Marker.ARROW, Marker.ADD
+        nose.pose.position.x = 0.21
+        nose.pose.orientation.w = 1.0
+        nose.scale.x, nose.scale.y, nose.scale.z = 0.18, 0.06, 0.06
+        nose.color.r, nose.color.g = 0.1, 0.1
+        nose.color.b, nose.color.a = 0.1, 1.0
+        self.body_pub.publish(nose)
 
     # -- motion ------------------------------------------------------------
     def _on_cmd(self, msg: Twist):

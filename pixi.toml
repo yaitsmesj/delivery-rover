@@ -1,6 +1,7 @@
 [workspace]
 authors = ["Suraj Jain <imsuraj.sj@gmail.com>"]
 channels = ["robostack-humble", "conda-forge", "pytorch"]
+license = "MIT"
 name = "delivery-rover"
 platforms = ["osx-arm64"]
 version = "0.1.0"
