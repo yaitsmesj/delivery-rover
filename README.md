@@ -84,7 +84,10 @@ and logging boilerplate every ROS 2 node carries.*
 ## Stack
 
 ROS 2 Humble · Nav2 1.1.20 (MPPI) · Ultralytics YOLO11n · py_trees 2.4 ·
-Python 3.12 · Pixi/RoboStack · macOS (Apple Silicon) and Linux
+Python 3.12 · Pixi/RoboStack · macOS (Apple Silicon)
+
+The environment is pinned to `osx-arm64` and has only ever been run there — see
+[what's wrong with it](#whats-wrong-with-it) before trying it on Linux.
 
 ## Quickstart
 
@@ -299,15 +302,79 @@ system the same way any other ROS client would.
 Every image above is reproducible — [`docs/M6-capture-checklist.md`](docs/M6-capture-checklist.md)
 gives the exact commands, in order, from a clean checkout.
 
-## Known limits
+## What's wrong with it
 
-- The base is simulated. The swap to hardware is four topics wide, but it has
-  not been done.
-- `map → odom` is published as identity. A real robot needs AMCL or SLAM here;
-  the consumers do not change.
-- Detection gives presence, not position. Acting on *where* the cargo is would
-  need depth projection into `base_link`.
-- Single robot, single mission at a time.
+This is a first robotics project, and it is not a finished product. The
+shortcomings below are deliberate and known, not discovered by a reviewer — the
+point of listing them is that knowing what a system *doesn't* do is most of
+knowing the system. They are the backlog for the next project.
+
+### The simulation hides more than it shows
+
+- **The base is simulated.** The swap to hardware is four topics wide and that
+  claim is untested. A real base brings wheel slip, command latency, encoder
+  drift and a lidar that misses — none of which this kinematic model produces,
+  and all of which change how MPPI behaves.
+- **`map → odom` is published as identity**, so there is no localization at all.
+  The rover cannot get lost, which conveniently hides the single largest source
+  of real-robot failure. AMCL or SLAM belongs here; the consumers wouldn't change,
+  but everything downstream would finally be tested against pose error.
+- **There is no URDF.** The rover body is a hand-published marker rather than a
+  robot description, so there are no joints, no link geometry and no proper
+  footprint — Nav2 is working with a radius. A URDF plus `robot_state_publisher`
+  is the correct fix and would delete the marker code entirely.
+- **No sensor noise anywhere.** The lidar is an exact ray-cast. Adding gaussian
+  noise and dropout would be a one-afternoon change and would probably expose
+  costmap tuning that is currently getting away with being lucky.
+
+### What the robot genuinely cannot do
+
+- **Detection gives presence, not position.** `Detection2DArray` carries a class
+  and a score; nothing projects the box into `base_link`. So the rover can prove
+  the cargo is *in view*, never that it is *reachable*, and it cannot drive to the
+  cargo — only to a waypoint where the cargo is expected. Closing that gap needs
+  depth, camera intrinsics and a TF from the optical frame, and is the single
+  biggest capability missing.
+- **The waypoints are hardcoded** as a dict literal in `world.py`. Changing where
+  the rover delivers means editing source and rebuilding. They should be a YAML
+  parameter file loaded at launch.
+- **One robot, one mission.** There is no queue, no fleet, no mission beyond the
+  two-leg one that is compiled in.
+
+### What isn't tested
+
+- **There is no CI.** No `.github/`, nothing automated. Every result in this
+  README was produced by hand, which means nothing stops a regression; the
+  `frame_locked` bug below survived exactly because nothing re-checks the visual
+  output.
+- **Unit coverage is thin.** `colcon test` runs flake8, pep257, a skipped
+  copyright check, and one real unit-test module (`test_world.py`). The behaviour
+  tree, the navigator's readiness logic and detection staleness are only ever
+  exercised by the integration checks, which need a live stack and a human to run
+  them.
+- **The environment is `osx-arm64` only.** `pixi.toml` pins that one platform and
+  the lockfile contains no `linux-64` entries, so `pixi install` will refuse on
+  Linux despite ROS 2 being perfectly happy there. Adding the platform to the
+  manifest and re-solving is the fix; it has not been done or tested.
+
+### Bugs that cost the most time, and why
+
+Kept because they are the actual lesson of the project: in ROS, the expensive
+failures are the silent ones.
+
+| What happened | Why it was expensive |
+|---|---|
+| RViz showed no laser | `/scan` publishes Best-Effort; the config asked for Reliable. Incompatible QoS means DDS never connects the two — **no error, no warning**, just nothing |
+| The rover body never moved | `Marker.frame_locked` defaults to false, so RViz placed it once and left it. Invisible while the robot sat at home; only caught by reviewing screenshots |
+| `source:=0` crashed the vision node | Launch arguments are strings, but `launch_ros` writes them into a YAML params file that re-types them, so `0` arrived as INTEGER. Every earlier test passed a file path, which is a string either way |
+| `/mission` appeared twice | `Node(name=...)` in a launch file becomes `__node:=`, which remaps **every** node that process creates — including the navigator's internal one |
+| Detection ran at 0.35 Hz | YOLO was being handed full 1080p frames. `imgsz=640` fixed it; the model was trained at 640 and the extra pixels bought nothing |
+| The `/cmd_vel` experiment "proved" the wrong thing | The first run reported the goal failing permanently. It hadn't — the rig was CPU-starved and the result was measuring the laptop, not the robot. A demo that confirms your argument deserves more suspicion than one that doesn't |
+
+### Next project
+
+Hardware base, real localization, a URDF, depth-projected detections, and CI
+that runs the integration checks against a headless stack on every push.
 
 ## License
 
